@@ -35,13 +35,18 @@ public class Punteggio {
 
     /**
      * Una partita nuova, 0 a 0, con la sua regola per vincere.
-     * Pretende: puntiPerVincere è almeno 1; scartoMinimo è almeno 1.
-     * Promette: una partita 0 a 0, non finita, senza vincitore e con la storia
-     * vuota.
+     * Pretende: niente.
+     * Promette: una partita 0 a 0, non finita, senza vincitore e con la storia vuota.
+     * Lancia IllegalArgumentException se puntiPerVincere è minore di 1
+     * o se scartoMinimo è minore di 1.
      */
+
     public Punteggio(int puntiPerVincere, int scartoMinimo) {
+        if (puntiPerVincere < 1 || scartoMinimo < 1) {
+            throw new IllegalArgumentException("puntiPerVincere e scartoMinimo devono essere almeno 1");
+        }
         this.puntiPerVincere = puntiPerVincere;
-        this.scartoMinimo = scartoMinimo;
+        this.scartoMinimo = scartoMinimo;    
         puntiSinistra = 0;
         puntiDestra = 0;
         finita = false;
@@ -49,19 +54,64 @@ public class Punteggio {
         storia = new ArrayList<>();
     }
 
+    /*
+    * Invariante della rappresentazione:
+    *  - puntiPerVincere >= 1 e scartoMinimo >= 1;
+    *  - storia non è null e non contiene elementi null;
+    *  - puntiSinistra e puntiDestra sono quanti punti di quel lato compaiono nella storia;
+    *  - la partita non si chiude prima dell'ultimo punto della storia
+    *    (nessun punto dopo quello che ha chiuso la partita);
+    *  - vincitore è il lato che, contando la storia, ha vinto (null se nessuno ha vinto)
+    *    e finita è vero se e solo se vincitore non è null.
+    */
+    boolean repOK() {
+        if (puntiPerVincere < 1 || scartoMinimo < 1 || storia == null)
+            return false;
+
+        int sx = 0, dx = 0;
+        for (int i = 0; i < storia.size(); i++) {
+            Lato lato = storia.get(i);
+            if (lato == null)
+                return false;
+            if (lato == Lato.SINISTRA)
+                sx++;
+            else
+                dx++;
+            // se la partita era già chiusa, un punto dopo non può esistere
+            if (i < storia.size() - 1 && chiHaVinto(sx, dx) != null)
+                return false;
+        }
+
+        if (sx != puntiSinistra || dx != puntiDestra)
+            return false;
+
+        return vincitore == chiHaVinto(sx, dx) && finita == (vincitore != null);
+    }
+
+    /** Il lato che con questi punti ha vinto, o null se la partita è in corso. */
+    private Lato chiHaVinto(int sx, int dx) {
+        if (sx >= puntiPerVincere && sx - dx >= scartoMinimo)
+            return Lato.SINISTRA;
+        if (dx >= puntiPerVincere && dx - sx >= scartoMinimo)
+            return Lato.DESTRA;
+        return null;
+    }
+
     /**
      * Il lato chi ha fatto un punto.
-     * Pretende: chi non è null.
-     * Promette: se la partita non era finita, il lato chi ha un punto in più,
-     * l'altro lato non
-     * cambia e il punto si aggiunge in fondo alla storia; se con questo punto il
-     * lato chi
+     * Pretende: niente.
+     * Promette: se la partita non era finita, il lato chi ha un punto in più, l'altro lato non
+     * cambia e il punto si aggiunge in fondo alla storia; se con questo punto il lato chi
      * vince (regola in cima alla classe), la partita è finita e il vincitore è chi.
      * Se la partita era già finita, non cambia niente.
+     * Lancia IllegalArgumentException se chi è null, anche a partita finita, e non cambia niente.
      */
     public void segnaPunto(Lato chi) {
         // Se la partita è finita non faccio niente
         //(es. test vinceSinistraUnAltroPuntoNonCambiaNiente() passa)
+        if(chi == null)
+            throw new IllegalArgumentException("parametro non può essere null");
+
         if (isFinita()) {
             return;
         }
@@ -87,10 +137,14 @@ public class Punteggio {
     }
 
     /**
-     * Pretende: chi non è null.
+     * Pretende: niente.
      * Promette: i punti del lato chi. Non cambia niente.
+     * Lancia IllegalArgumentException se chi è null.
      */
     public int getPunti(Lato chi) {
+        if(chi == null)
+            throw new IllegalArgumentException("parametro non può essere null");
+
         if (chi == Lato.SINISTRA) {
             return puntiSinistra;
         } else {
